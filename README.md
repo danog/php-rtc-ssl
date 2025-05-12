@@ -1,7 +1,7 @@
 # OpenSSL Adapter for PHP WebRTC
 
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.4-blue.svg)](https://php.net/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-BSD-blue.svg)](LICENSE)
 
 A secure PHP FFI wrapper for OpenSSL, specifically designed for WebRTC implementations. Provides comprehensive cryptographic support including DTLS, SRTP, and certificate management.
 
@@ -20,7 +20,7 @@ A secure PHP FFI wrapper for OpenSSL, specifically designed for WebRTC implement
 
 ## Documentation
 
-This component is part of the PHP WebRTC ecosystem. For full documentation:
+This package is part of the PHP WebRTC library. For complete documentation, examples, and API reference, visit:
 
 [PHP WebRTC Documentation](https://www.quasarstream.com/php-webrtc)
 
@@ -29,7 +29,7 @@ This component is part of the PHP WebRTC ecosystem. For full documentation:
 ### Authors
 
 - **Amin Yazdanpanah**  
-  [aminyazdanpanah.com](https://www.aminyazdanpanah.com) |  
+  [aminyazdanpanah.com](https://www.aminyazdanpanah.com)
   [github@aminyazdanpanah.com](mailto:github@aminyazdanpanah.com)
 
 - **Sana Moniri**  
@@ -37,11 +37,11 @@ This component is part of the PHP WebRTC ecosystem. For full documentation:
 
 ## Reporting Issues
 
-Found a bug? Please report it on our [GitHub repository](https://github.com/your-repo-here/issues).
+Found a bug? Please report it on our [issues](https://github.com/php-webrtc/ssl/issues).
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+BSD 3-Clause License. See [LICENSE](LICENSE) for details.
 
 ## References
 
