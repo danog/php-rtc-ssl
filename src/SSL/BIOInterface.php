@@ -11,8 +11,6 @@
 
 namespace Webrtc\SSL\SSL;
 
-use FFI\CData;
-
 interface BIOInterface
 {
     public function read(): ?string;
@@ -21,7 +19,7 @@ interface BIOInterface
 
     public function write(string $buf): int ;
 
-    public function handleBioErrors(CData $bio) ;
+    public function handleBioErrors(mixed $bio): void;
 
     public function setBufferSize(int $bufferSize): void;
 }

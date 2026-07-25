@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This file is part of the PHP WebRTC package.
+ * This file is part of the PHP WebRTC package, vendored and modified for MadelineProto.
  *
  * (c) Amin Yazdanpanah <https://www.aminyazdanpanah.com/#contact>
  *
@@ -11,174 +11,100 @@
 
 namespace Webrtc\SSL\SSL;
 
-use FFI;
-use FFI\CData;
-use Webrtc\Exception\InvalidArgumentException;
-use Webrtc\Exception\RuntimeException;
-use Webrtc\Mixin\SharedLibraryInterface;
 use Webrtc\SSL\Enum\BioMethod;
-use Webrtc\SSL\Exception\OpenSSLException;
-use Webrtc\SSL\Exception\WantReadException;
-use Webrtc\SSL\Exception\WantWriteException;
 
 /**
- * BIO (Basic I/O) Stream Handler
+ * The datagram queues sitting between the DTLS engine and the network.
  *
- * Provides an interface to OpenSSL's BIO abstraction for I/O operations,
- * supporting various BIO methods (memory, file, socket, etc.). Implement
- * both BIOInterface and SharedLibraryInterface.
+ * Upstream this wrapped an OpenSSL memory BIO. It is now a plain pair of queues: {@see self::write()}
+ * hands a datagram received from the ICE transport to the engine, and {@see self::read()} takes the
+ * next datagram the engine wants to put on the wire.
  */
-class BIO implements BIOInterface, SharedLibraryInterface
+class BIO implements BIOInterface
 {
-    /** @var CData|null Input BIO structure */
-    private ?CData $input;
+    /** Datagrams received from the network, waiting to be fed to the engine. @var list<string> */
+    private array $inbound = [];
 
-    /** @var CData|null Output BIO structure */
-    private ?CData $output;
+    /** Datagrams produced by the engine, waiting to be sent. @var list<string> */
+    private array $outbound = [];
 
-    /** @var FFI Reference to OpenSSL FFI library */
-    private FFI $libssl;
+    private int $bufferSize = 8192;
 
-    /** @var CData|null Buffer for I/O operations */
-    private ?CData $buffer;
-
-    /**
-     * BIO constructor
-     *
-     * Initializes input and output BIO streams using specified methods
-     *
-     * @param BioMethod $input Method for input BIO
-     * @param BioMethod|null $output Method for output BIO (defaults to same as input)
-     * @throws RuntimeException If BIO creation fails
-     */
-    public function __construct(BioMethod $input, ?BioMethod $output = null)
+    public function __construct(private readonly BioMethod $method = BioMethod::s_mem)
     {
-        $this->initiateSharedLibrary();
-
-        $this->input = $this->libssl->BIO_new($this->libssl->{"BIO_" . $input->name}());
-        $this->output = $this->libssl->BIO_new($this->libssl->{"BIO_" . ($output ? $output->name : $input->name)}());
-        if (!$this->input || !$this->output) {
-            throw new RuntimeException("Couldn't create basic input or output");
-        }
     }
 
     /**
-     * Gets the input BIO structure
-     *
-     * @return CData|null The input BIO structure
+     * Take the next datagram the engine wants to send, or null if there is none.
      */
-    public function getInput(): ?CData
+    public function read(): ?string
     {
-        return $this->input;
+        return array_shift($this->outbound);
     }
 
     /**
-     * Gets the output BIO structure
-     *
-     * @return CData|null The output BIO structure
-     */
-    public function getOutput(): ?CData
-    {
-        return $this->output;
-    }
-
-    /**
-     * Gets the number of pending bytes in output BIO
-     *
-     * @return int Number of bytes available for reading
+     * Total number of bytes queued for sending.
      */
     public function getPendingBytes(): int
     {
-        return $this->libssl->BIO_ctrl_pending($this->output);
-    }
-
-    /**
-     * Reads data from the BIO
-     *
-     * @param bool $input Whether to read from input (true) or output (false) BIO
-     * @return string|null The read data or null if no data available
-     */
-    public function read(bool $input = false): ?string
-    {
-        $bytes = $this->libssl->BIO_read($input ? $this->input : $this->output, $this->buffer, FFI::sizeof($this->buffer));
-
-        if ($bytes > 0) {
-            return FFI::string($this->buffer, $bytes);
+        $pending = 0;
+        foreach ($this->outbound as $datagram) {
+            $pending += \strlen($datagram);
         }
-
-        return null;
+        return $pending;
     }
 
     /**
-     * Writes data to the BIO
-     *
-     * @param string $buf The data to write
-     * @return int Number of bytes written
-     * @throws InvalidArgumentException If no output BIO is available
-     * @throws OpenSSLException For general BIO errors
-     * @throws WantReadException If BIO needs to read before writing
-     * @throws WantWriteException If BIO needs to wait before writing
+     * Queue a datagram received from the network.
      */
     public function write(string $buf): int
     {
-        if ($this->input === null) {
-            throw new InvalidArgumentException("There is no output to write");
+        if ($buf !== '') {
+            $this->inbound[] = $buf;
         }
-        $bufSize = strlen($buf);
-
-        $data = $this->libssl->new("unsigned char[$bufSize]");
-        FFI::memcpy($data, $buf, $bufSize);
-
-        // Write the data to the memory BIO
-        $ret = $this->libssl->BIO_write($this->input, $data, $bufSize);
-        $this->handleBioErrors($this->input);
-
-        return $ret;
+        return \strlen($buf);
     }
 
     /**
-     * Handles BIO-specific error conditions
-     *
-     * @param CData $bio The BIO structure to check
-     * @throws OpenSSLException For non-retryable errors
-     * @throws WantReadException When BIO needs read operation
-     * @throws WantWriteException When BIO needs to write operation
-     * @throws InvalidArgumentException For unknown BIO states
+     * Take the next datagram received from the network, for the engine to process.
      */
-    public function handleBioErrors(CData $bio): void
+    public function takeInbound(): ?string
     {
-        if ($this->libssl->BIO_test_flags($bio, BIO_FLAGS_SHOULD_RETRY)) {
-            if ($this->libssl->BIO_test_flags($bio, BIO_FLAGS_READ)) {
-                throw new WantReadException("BIO wants to read");
-            } elseif ($this->libssl->BIO_test_flags($bio, BIO_FLAGS_WRITE)) {
-                throw new WantWriteException("BIO wants to write");
-            } elseif ($this->libssl->BIO_test_flags($bio, BIO_FLAGS_IO_SPECIAL)) {
-                throw new InvalidArgumentException("BIO_should_io_special");
-            } else {
-                throw new InvalidArgumentException("unknown bio failure");
-            }
-        }
+        return array_shift($this->inbound);
     }
 
     /**
-     * Sets the buffer size for I/O operations
-     *
-     * @param int $bufferSize Size of buffer to allocate
+     * Queue a datagram produced by the engine.
      */
+    public function pushOutbound(string $datagram): void
+    {
+        $this->outbound[] = $datagram;
+    }
+
+    public function hasOutbound(): bool
+    {
+        return $this->outbound !== [];
+    }
+
+    /**
+     * Kept for interface compatibility: there is no native BIO to inspect any more.
+     */
+    public function handleBioErrors(mixed $bio): void
+    {
+    }
+
     public function setBufferSize(int $bufferSize): void
     {
-        $this->buffer = $this->libssl->new("char[$bufferSize]");
+        $this->bufferSize = $bufferSize;
     }
 
-    /**
-     * Initializes the shared OpenSSL library reference
-     */
-    public function initiateSharedLibrary(): void
+    public function getBufferSize(): int
     {
-        global $libssl;
+        return $this->bufferSize;
+    }
 
-        if ($libssl instanceof FFI) {
-            $this->libssl = $libssl;
-        }
+    public function getMethod(): BioMethod
+    {
+        return $this->method;
     }
 }
