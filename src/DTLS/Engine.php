@@ -112,20 +112,45 @@ final class Engine
     private ?string $peerCertificateDigest = null;
     private string $selectedSrtpProfile = '';
 
-    /** SRTP protection profiles we offer, most preferred first. @var array<string, int> */
-    private array $srtpProfiles = [
+    /** Every SRTP protection profile this engine implements, most preferred first. */
+    private const SUPPORTED_SRTP_PROFILES = [
         'SRTP_AEAD_AES_256_GCM' => 0x0008,
         'SRTP_AEAD_AES_128_GCM' => 0x0007,
         'SRTP_AES128_CM_SHA1_80' => 0x0001,
     ];
 
+    /** SRTP protection profiles we offer, most preferred first. @var array<string, int> */
+    private array $srtpProfiles = self::SUPPORTED_SRTP_PROFILES;
+
     private float $timeout = self::INITIAL_TIMEOUT;
     private ?float $deadline = null;
 
-    public function __construct(private readonly RTCCertificate $certificate)
-    {
+    /**
+     * @param list<string> $srtpProfiles The protection profiles to offer, most preferred first.
+     *                                   Empty offers everything this engine implements.
+     */
+    public function __construct(
+        private readonly RTCCertificate $certificate,
+        array $srtpProfiles = []
+    ) {
         $this->records = new RecordLayer;
         $this->reassembler = new Handshake;
+
+        if ($srtpProfiles !== []) {
+            $requested = array_intersect_key(
+                self::SUPPORTED_SRTP_PROFILES,
+                array_flip($srtpProfiles)
+            );
+
+            if ($requested === []) {
+                throw new SSLException(
+                    'None of the requested SRTP protection profiles are implemented: '
+                    . implode(', ', $srtpProfiles)
+                );
+            }
+
+            $this->srtpProfiles = $requested;
+        }
     }
 
     /**

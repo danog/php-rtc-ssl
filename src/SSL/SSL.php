@@ -36,7 +36,10 @@ class SSL implements SSLInterface
         if ($certificate === null) {
             throw new RuntimeException('The SSL context has no certificate!');
         }
-        $this->engine = new Engine($certificate);
+        // Honour what the context was told to offer. Ignoring it meant setTlsextUseSrtp() had
+        // no effect at all: every handshake offered the full list regardless, so a peer could
+        // end up on a profile the caller never asked for.
+        $this->engine = new Engine($certificate, $context->getSrtpProfiles());
     }
 
     public function setAcceptState(): void
