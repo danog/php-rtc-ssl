@@ -67,6 +67,15 @@ final class Engine
     private bool $handshakeComplete = false;
     private bool $closed = false;
 
+    /**
+     * Whether this side has already put its own close_notify on the wire.
+     *
+     * Tracked separately from $closed, which is also set when the *peer* closes: a peer that
+     * announces a close still has to be answered with our own alert before the association is
+     * torn down, and conflating the two swallows that reply.
+     */
+    private bool $closeNotifySent = false;
+
     private string $clientRandom = '';
     private string $serverRandom = '';
     private string $cookie = '';
@@ -286,9 +295,10 @@ final class Engine
      */
     public function shutdown(): bool
     {
-        if ($this->closed) {
+        if ($this->closeNotifySent) {
             return true;
         }
+        $this->closeNotifySent = true;
         $this->closed = true;
         $this->outgoing[] = $this->records->encode(RecordLayer::TYPE_ALERT, "\x01\x00");
         return true;

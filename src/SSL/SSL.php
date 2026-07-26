@@ -15,6 +15,7 @@ use Webrtc\Exception\RuntimeException;
 use Webrtc\SSL\DTLS\Engine;
 use Webrtc\SSL\Exception\SSLException;
 use Webrtc\SSL\Exception\WantReadException;
+use Webrtc\SSL\Exception\ZeroReturnException;
 
 /**
  * A DTLS connection, driving the pure-PHP {@see Engine} through the {@see BIO} datagram queues.
@@ -134,6 +135,14 @@ class SSL implements SSLInterface
         $this->flush();
 
         if ($this->engine->pendingApplicationData() === 0) {
+            // Application data that arrived before the alert is still delivered first; only once
+            // it has been drained does a received close_notify become a clean end of stream.
+            // Callers distinguish this from "nothing yet" to tear the transport down, so
+            // reporting WantRead here would leave them connected to a peer that has gone away.
+            if ($this->engine->isClosed()) {
+                throw new ZeroReturnException('The peer closed the DTLS connection.');
+            }
+
             throw new WantReadException('No application data is available yet.');
         }
         return $this->engine->read($bufsiz);
