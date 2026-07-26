@@ -98,7 +98,11 @@ final class Engine
 
     /** Datagrams waiting to be sent. @var list<string> */
     private array $outgoing = [];
-    /** The last flight we sent, kept for retransmission. @var list<string> */
+    /**
+     * The last flight we sent, kept for retransmission as plaintext records.
+     *
+     * @var list<array{int, string, int}> Record type, payload and the epoch it was sent in.
+     */
     private array $lastFlight = [];
 
     /** Plaintext application data received from the peer. */
@@ -208,10 +212,22 @@ final class Engine
         }
         $this->timeout = min($this->timeout * 2, self::MAX_TIMEOUT);
         $this->deadline = microtime(true) + $this->timeout;
-        foreach ($this->lastFlight as $datagram) {
-            $this->outgoing[] = $datagram;
-        }
+        $this->queueLastFlight();
         return true;
+    }
+
+    /**
+     * Encode the remembered flight afresh and queue it for sending.
+     *
+     * Each record is re-encoded at the epoch it was originally sent in but with a new sequence
+     * number, as RFC 6347 section 4.2.1 requires: replaying the original numbers would see the
+     * whole flight discarded by the peer's duplicate detection.
+     */
+    private function queueLastFlight(): void
+    {
+        foreach ($this->lastFlight as [$type, $payload, $epoch]) {
+            $this->outgoing[] = $this->records->encode($type, $payload, null, $epoch);
+        }
     }
 
     /**
@@ -224,6 +240,16 @@ final class Engine
         foreach ($this->records->decode($datagram) as $record) {
             switch ($record['type']) {
                 case RecordLayer::TYPE_HANDSHAKE:
+                    if ($this->handshakeComplete) {
+                        // Completing the handshake clears the retransmission deadline, so our
+                        // final flight is never re-sent on a timer. A peer still sending
+                        // handshake records is telling us that flight never arrived; RFC 6347
+                        // section 4.2.4 requires answering with it again. Without this the peer
+                        // retransmits until it gives up while we consider the exchange finished.
+                        $this->queueLastFlight();
+                        break;
+                    }
+
                     foreach ($this->reassembler->receive($record['payload']) as $message) {
                         $this->handleHandshakeMessage($message['type'], $message['body'], $message['seq']);
                     }
@@ -583,31 +609,34 @@ final class Engine
      */
     private function sendFlight(array $messages, bool $finish = false): void
     {
-        $datagrams = [];
+        // The flight is remembered as plaintext records tagged with the epoch they belong to,
+        // not as finished datagrams: a retransmission has to be re-encoded so it carries fresh
+        // record sequence numbers, which the peer's duplicate filter would otherwise reject.
+        $flight = [];
+
         foreach ($messages as [$type, $body]) {
             $seq = $this->writeMessageSeq++;
             $this->transcript .= Handshake::transcriptForm($type, $body, $seq);
             foreach (Handshake::fragment($type, $body, $seq) as $fragment) {
-                $datagrams[] = $this->records->encode(RecordLayer::TYPE_HANDSHAKE, $fragment);
+                $flight[] = [RecordLayer::TYPE_HANDSHAKE, $fragment, $this->records->getWriteEpoch()];
             }
         }
 
         if ($finish) {
-            $datagrams[] = $this->records->encode(RecordLayer::TYPE_CHANGE_CIPHER_SPEC, "\x01");
+            // ChangeCipherSpec is still sent in the old epoch; only what follows it is protected.
+            $flight[] = [RecordLayer::TYPE_CHANGE_CIPHER_SPEC, "\x01", $this->records->getWriteEpoch()];
             $this->records->activateWrite();
 
             $body = Prf::verifyData($this->masterSecret, hash('sha256', $this->transcript, true), !$this->isServer);
             $seq = $this->writeMessageSeq++;
             $this->transcript .= Handshake::transcriptForm(Handshake::FINISHED, $body, $seq);
             foreach (Handshake::fragment(Handshake::FINISHED, $body, $seq) as $fragment) {
-                $datagrams[] = $this->records->encode(RecordLayer::TYPE_HANDSHAKE, $fragment);
+                $flight[] = [RecordLayer::TYPE_HANDSHAKE, $fragment, $this->records->getWriteEpoch()];
             }
         }
 
-        $this->lastFlight = $datagrams;
-        foreach ($datagrams as $datagram) {
-            $this->outgoing[] = $datagram;
-        }
+        $this->lastFlight = $flight;
+        $this->queueLastFlight();
         $this->armTimer();
     }
 

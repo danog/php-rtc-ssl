@@ -41,8 +41,16 @@ final class RecordLayer
 
     /** Outgoing epoch, incremented by each ChangeCipherSpec we send. */
     private int $writeEpoch = 0;
-    /** Outgoing record sequence number, reset for every epoch. */
-    private int $writeSequence = 0;
+    /**
+     * Next outgoing record sequence number, per epoch.
+     *
+     * Kept per epoch rather than as a single counter because a retransmitted flight has to be
+     * re-encoded at the epoch it was originally sent in, while still taking a fresh sequence
+     * number: peers drop a replayed number as a duplicate.
+     *
+     * @var array<int, int>
+     */
+    private array $writeSequences = [0 => 0];
     /** Incoming epoch, incremented by each ChangeCipherSpec we receive. */
     private int $readEpoch = 0;
 
@@ -87,7 +95,7 @@ final class RecordLayer
     public function activateWrite(): void
     {
         $this->writeEpoch++;
-        $this->writeSequence = 0;
+        $this->writeSequences[$this->writeEpoch] ??= 0;
     }
 
     /**
@@ -111,11 +119,15 @@ final class RecordLayer
     /**
      * Serialize one record, protecting it if the write epoch is already encrypted.
      */
-    public function encode(int $type, string $payload, ?string $version = null): string
+    public function encode(int $type, string $payload, ?string $version = null, ?int $epoch = null): string
     {
         $version ??= self::VERSION_1_2;
-        $epoch = $this->writeEpoch;
-        $sequence = $this->writeSequence++;
+        // A retransmission names the epoch its flight belongs to; everything else uses the
+        // current one. Encrypted records are keyed per epoch, so re-encoding a pre-ChangeCipherSpec
+        // record at the new epoch would make it undecryptable to the peer.
+        $epoch ??= $this->writeEpoch;
+        $sequence = $this->writeSequences[$epoch] ?? 0;
+        $this->writeSequences[$epoch] = $sequence + 1;
 
         if ($epoch === 0 || $this->writeKey === null) {
             return \chr($type).$version.self::sequence($epoch, $sequence)
