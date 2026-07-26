@@ -20,9 +20,9 @@ namespace Webrtc\SSL\DTLS;
 final class Prf
 {
     /** Length of the master secret, in bytes. */
-    public const int MASTER_SECRET_LENGTH = 48;
+    public const MASTER_SECRET_LENGTH = 48;
     /** Length of the verify_data carried by a Finished message. */
-    public const int VERIFY_DATA_LENGTH = 12;
+    public const VERIFY_DATA_LENGTH = 12;
 
     /**
      * P_hash as defined in RFC 5246 section 5, using SHA-256.

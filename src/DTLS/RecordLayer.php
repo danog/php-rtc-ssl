@@ -25,19 +25,19 @@ use Throwable;
  */
 final class RecordLayer
 {
-    public const int TYPE_CHANGE_CIPHER_SPEC = 20;
-    public const int TYPE_ALERT = 21;
-    public const int TYPE_HANDSHAKE = 22;
-    public const int TYPE_APPLICATION_DATA = 23;
+    public const TYPE_CHANGE_CIPHER_SPEC = 20;
+    public const TYPE_ALERT = 21;
+    public const TYPE_HANDSHAKE = 22;
+    public const TYPE_APPLICATION_DATA = 23;
 
     /** DTLS 1.2 is encoded as {254, 253}, i.e. the ones' complement of 1.2. */
-    public const string VERSION_1_2 = "\xFE\xFD";
+    public const VERSION_1_2 = "\xFE\xFD";
     /** DTLS 1.0 is used in the first ClientHello for backwards compatibility. */
-    public const string VERSION_1_0 = "\xFE\xFF";
+    public const VERSION_1_0 = "\xFE\xFF";
 
-    private const int HEADER_LENGTH = 13;
-    private const int EXPLICIT_NONCE_LENGTH = 8;
-    private const int TAG_LENGTH = 16;
+    private const HEADER_LENGTH = 13;
+    private const EXPLICIT_NONCE_LENGTH = 8;
+    private const TAG_LENGTH = 16;
 
     /** Outgoing epoch, incremented by each ChangeCipherSpec we send. */
     private int $writeEpoch = 0;

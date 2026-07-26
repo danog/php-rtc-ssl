@@ -34,30 +34,30 @@ use Throwable;
 final class Engine
 {
     /** TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256. */
-    public const int SUITE_ECDHE_ECDSA_AES128_GCM = 0xC02B;
+    public const SUITE_ECDHE_ECDSA_AES128_GCM = 0xC02B;
     /** TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256. */
-    public const int SUITE_ECDHE_RSA_AES128_GCM = 0xC02F;
+    public const SUITE_ECDHE_RSA_AES128_GCM = 0xC02F;
 
-    private const int CURVE_SECP256R1 = 23;
-    private const int SIG_ECDSA_SECP256R1_SHA256 = 0x0403;
-    private const int SIG_RSA_PKCS1_SHA256 = 0x0401;
+    private const CURVE_SECP256R1 = 23;
+    private const SIG_ECDSA_SECP256R1_SHA256 = 0x0403;
+    private const SIG_RSA_PKCS1_SHA256 = 0x0401;
 
-    private const int EXT_SUPPORTED_GROUPS = 10;
-    private const int EXT_EC_POINT_FORMATS = 11;
-    private const int EXT_SIGNATURE_ALGORITHMS = 13;
-    private const int EXT_USE_SRTP = 14;
-    private const int EXT_EXTENDED_MASTER_SECRET = 23;
-    private const int EXT_RENEGOTIATION_INFO = 0xFF01;
+    private const EXT_SUPPORTED_GROUPS = 10;
+    private const EXT_EC_POINT_FORMATS = 11;
+    private const EXT_SIGNATURE_ALGORITHMS = 13;
+    private const EXT_USE_SRTP = 14;
+    private const EXT_EXTENDED_MASTER_SECRET = 23;
+    private const EXT_RENEGOTIATION_INFO = 0xFF01;
 
     /** DER prefix of a SubjectPublicKeyInfo holding an uncompressed P-256 point. */
-    private const string P256_SPKI_PREFIX = "3059301306072a8648ce3d020106082a8648ce3d030107034200";
+    private const P256_SPKI_PREFIX = "3059301306072a8648ce3d020106082a8648ce3d030107034200";
 
-    private const int AES_KEY_LENGTH = 16;
-    private const int AEAD_SALT_LENGTH = 4;
+    private const AES_KEY_LENGTH = 16;
+    private const AEAD_SALT_LENGTH = 4;
 
     /** Initial retransmission timeout, doubled on each expiry (RFC 6347 section 4.2.4.1). */
-    private const float INITIAL_TIMEOUT = 1.0;
-    private const float MAX_TIMEOUT = 60.0;
+    private const INITIAL_TIMEOUT = 1.0;
+    private const MAX_TIMEOUT = 60.0;
 
     private RecordLayer $records;
     private Handshake $reassembler;

@@ -74,12 +74,12 @@ class X509Test extends TestCase
         $certificate->setSerialNumber(2 ** 32 + 1);
         $this->assertEquals(2 ** 32 + 1, $certificate->getSerialNumber());
 
-        $bigNum1 = gmp_strval(gmp_add(gmp_pow(2, 64), 1));
-        $certificate->setSerialNumber($bigNum1); // 2^64 + 1
+        $bigNum1 = "18446744073709551617"; // 2^64 + 1
+        $certificate->setSerialNumber($bigNum1);
         $this->assertEquals($bigNum1, $certificate->getSerialNumber());
 
-        $bigNum2 = gmp_strval(gmp_add(gmp_pow(2, 128), 1));
-        $certificate->setSerialNumber($bigNum2); // 2^128 + 1
+        $bigNum2 = "340282366920938463463374607431768211457"; // 2^128 + 1
+        $certificate->setSerialNumber($bigNum2);
         $this->assertEquals($bigNum2, $certificate->getSerialNumber());
     }
 

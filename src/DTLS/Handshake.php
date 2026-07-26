@@ -21,25 +21,25 @@ namespace Webrtc\SSL\DTLS;
  */
 final class Handshake
 {
-    public const int HELLO_REQUEST = 0;
-    public const int CLIENT_HELLO = 1;
-    public const int SERVER_HELLO = 2;
-    public const int HELLO_VERIFY_REQUEST = 3;
-    public const int CERTIFICATE = 11;
-    public const int SERVER_KEY_EXCHANGE = 12;
-    public const int CERTIFICATE_REQUEST = 13;
-    public const int SERVER_HELLO_DONE = 14;
-    public const int CERTIFICATE_VERIFY = 15;
-    public const int CLIENT_KEY_EXCHANGE = 16;
-    public const int FINISHED = 20;
+    public const HELLO_REQUEST = 0;
+    public const CLIENT_HELLO = 1;
+    public const SERVER_HELLO = 2;
+    public const HELLO_VERIFY_REQUEST = 3;
+    public const CERTIFICATE = 11;
+    public const SERVER_KEY_EXCHANGE = 12;
+    public const CERTIFICATE_REQUEST = 13;
+    public const SERVER_HELLO_DONE = 14;
+    public const CERTIFICATE_VERIFY = 15;
+    public const CLIENT_KEY_EXCHANGE = 16;
+    public const FINISHED = 20;
 
-    public const int HEADER_LENGTH = 12;
+    public const HEADER_LENGTH = 12;
 
     /**
      * Largest handshake fragment we emit, chosen to stay well inside a typical 1200 byte datagram
      * once the record and IP headers are accounted for.
      */
-    private const int MAX_FRAGMENT = 1000;
+    private const MAX_FRAGMENT = 1000;
 
     /**
      * Partially received messages, keyed by message sequence number.

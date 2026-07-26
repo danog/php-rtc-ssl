@@ -31,7 +31,7 @@ use Webrtc\SSL\SSL\SSL;
 #[CoversClass(SSL::class)]
 class SSLTest extends TestCase
 {
-    private const array SUPPORTED_CIPHER_SUITES = [
+    private const SUPPORTED_CIPHER_SUITES = [
         // AES-128-GCM-SHA256
         "ECDHE-ECDSA-AES128-GCM-SHA256",
         "ECDHE-RSA-AES128-GCM-SHA256",
